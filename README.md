@@ -1,48 +1,49 @@
-<h1>Blockchain-based-File-Storage</h1>
+# Blockchain-based File Storage
 
+## How to Run the Application
 
-
-<h2>How to run the application</h2>
-
-1. Install required libraries using :
-   `pip install -r requirements.txt`
-2. Open one terminal and start server/peer:
-   `python peer.py`
-3. Open another terminal and start a client:
-   `python run_app.py`
+1. Install required libraries:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Open one terminal and start the server/peer:
+   ```bash
+   python peer.py
+   ```
+3. Open another terminal and start the client:
+   ```bash
+   python run_app.py
+   ```
 4. Copy the link from the client terminal and paste it in any browser.
-5. To run our experiment of different Proof of Work concepts:
-`python POW_Comparison.py`
-<h2> Project Information </h2>
-We developed a web-based application for decentralized file storing using blockchain. In this application any user can upload as many files(one at a time) as he/she likes. All other peers and the user himself can download and access those file in their system. File can be of any type and any size. Refer to project demo link to see the detailed explanation. <br />
-We are using randomly generated nonce in proof of work concept to acheive the required difficulty (diff = 3). Once peer uploads the file, the file is stored in a block including username, filesize and file data. These block gets appended to the current blockchain, which makes it impossible to edit or delete the file/block.<br /> 
-The reason to implement file storing using blockchain is its abilitiy to avoid any modification or deletion. No one can delete or corrupt our files that are stored.
+5. To experiment with different Proof of Work concepts:
+   ```bash
+   python POW_Comparison.py
+   ```
 
-<h2> Project Demo </h2>
-<h3> Youtube Demo Link : https://youtu.be/Z6JiYkk8Qt8 </h3>
+## Project Overview
 
-<h2>Importance of Blockchain:</h2>
+This project creates a web-based decentralized file storage application using blockchain technology. Users can upload as many files as they like (one at a time), and others, as well as the uploader, can download and access the files. Files can be of any type and size. The project ensures that files are immutable, meaning they cannot be deleted or altered.
 
-Blockchain data structure is used to store digital information securely. Blockchain is an open ledger which can be accessed by multiple parties all at once. Blockchain holds various types of digital information such as transaction information, files, messages, etc. The successful implementation of blockchain holds different types of functionalities such as consensus algorithm, mining block, validation of block etc.
+When a peer uploads a file, it's stored in a block, which includes the username, file size, and file data. These blocks are added to the blockchain, making them secure and tamper-proof. The blockchain prevents modification or deletion of files, ensuring the integrity of the stored data.
 
-As part of this project, we have implemented a blockchain containing file information, which also allows users to upload/download all types of files from publicly available website. It uses SHA256 cryptographic algorithm to ensure that the block is kept secret. As a consensus algorithm, proof of work is implemented, which requires miners to solve any cryptographic puzzle before they get to announce new block on chain. In our application, we require to find a hash value that starts with three 0's as part of a puzzle.
+## Importance of Blockchain
 
-<h2>Proof of Work Algorithm:</h2>
+Blockchain provides a secure, decentralized way to store digital information. It acts as an open ledger, allowing multiple parties to access and validate data simultaneously. In this project, we store file-related data in a blockchain, allowing users to upload and download files securely. The blockchain uses the SHA256 cryptographic algorithm for security, and a Proof of Work (PoW) consensus algorithm to validate new blocks. Miners must solve a cryptographic puzzle to add a block to the blockchain. In this project, miners must find a hash value that starts with three zeros.
 
-Blockchain-based applications are typically peer-to-peer networks that must be as decentralized as possible. To support and enhance network decentralization, all peers in the network should be able to add new blocks to the network. Proof of work algorithms simulate the idea of each peer being able to add a new block. The goal of proof of work algorithms is to solve various cryptographic puzzles. Peers who solve these puzzles more quickly can add a new block to the blockchain.
+## Proof of Work Algorithm
 
-Two different proof of work algorithms are included in our blockchain implementation. Both are attempting to solve the same cryptographic puzzle, but in different ways. According to these proof of work algorithms, whoever finds a hash value for their block that contains a certain number of leading zeros will be able to announce it to the chain. For example, our blockchain only allows miners to add a block if the hash value of their block begins with three zeros, indicating that the difficulty of the blockchain is 3. The term miner refers to peers who attempt to add blocks to the blockchain.
+Proof of Work (PoW) is a consensus mechanism used in blockchain to maintain decentralization. It requires miners to solve cryptographic puzzles before they can add a new block to the blockchain. Miners who solve these puzzles more quickly can add a new block.
 
-Based on this idea, we have implemented two algorithms. Both calculate nonce differently. One calculates nonce randomly in each iteration and another one simply increments nonce by one in each iteration. We have analyzed running time and behavior of both algorithms in the file named POW_Comparison.py. Based on the output of the file, we have concluded some results for both the methods.
+Two different Proof of Work algorithms are implemented in this project. Both algorithms solve the same puzzle, but in different ways. In the first algorithm, the nonce is randomly generated, while in the second one, the nonce is incremented by one. We analyze the performance and behavior of both algorithms in the `POW_Comparison.py` file.
 
-<h2>Comparison of proof of work algorithms:</h2>
+## Proof of Work Algorithm Comparison
 
-<h3>Difference:</h3>
+### Difference:
 
-1. Nonce = random.randint(0,99999999) (first algorithm: p_o_w)
-2. Nonce += 1 (second algorithm: p_o_w_2)
+1. First algorithm: `Nonce = random.randint(0, 99999999)`
+2. Second algorithm: `Nonce += 1`
 
-The running time for first algorithm:
+### Running time of the first algorithm:
 
 |               | Attempt #1 | Attempt #2 | Attempt #3 | Attempt #4 |
 |---------------|------------|------------|------------|------------|
@@ -51,7 +52,7 @@ The running time for first algorithm:
 | Difficulty #4 | 0.13479    | 0.22688    | 0.34565    | 0.19841    |            
 | Difficulty #5 | 4.06034    | 2.08288    | 0.58391    | 0.2094     |            
 
-The running time of Second algorithm:
+### Running time of the second algorithm:
 
 |               | Attempt #1 | Attempt #2 | Attempt #3 | Attempt #4 |
 |---------------|------------|------------|------------|------------|
@@ -60,57 +61,42 @@ The running time of Second algorithm:
 | Difficulty #4 | 0.00366    | 0.03813    | 0.32095    | 0.02145    |            
 | Difficulty #5 | 0.04403    | 3.10820    | 1.53688    | 1.50288    |            
 
-<h3>Why First Algorithm is better than Second one?</h3>
+### Why the First Algorithm is Better:
 
-<b><h4> Probability of Valid output & running time </h4> </b>
+#### Probability of Valid Output & Running Time
 
-Based on the output of the POW_Comparison.py file, we can conclude that for lower difficulty levels, the running time does not vary significantly. However, for higher difficulty levels, the first algorithm, where the nonce is generated at random, can be faster. One reason for this is that transactions are added concurrently while POW is still running. If a new transaction is added after POW has started running, the entire equation to generate hash will change, and the ultimate nonce value will change compared to the previous value POW was searching for. In 2nd algorithm, previously tested nonce will not be repeated even though there is still a probability that previous nonce can be the solution.
+For lower difficulty levels, the running time doesn't differ much. However, for higher difficulty levels, the first algorithm (random nonce) tends to be faster. This is because, in the second algorithm (incremental nonce), the chances of getting the correct nonce decrease as transactions are added while PoW is running. In the first algorithm, since the nonce is chosen randomly, it has a higher probability of finding the correct value faster.
 
-For Example,
+#### Security
 
-Assume that POW has started running.
+The second algorithm is less secure because the nonce value can be estimated based on the running time. If someone knows the running time and can estimate the range of the nonce, they could potentially break the blockchain system, which relies on the integrity of all connected blocks.
 
-Nonce has reached to 99978. So, probability for 0-99977 being a solution is 0.
+## Issues with the First Algorithm
 
-At this point, new transaction is added to the block, which will change entire equation of calculating the hash value. Now, probability of 0-99977 being a solution is not 0. However, those values will not be tested again. This behavior may affect the run time and there can be such case where there is no solution or very less probability for any of the later nonce to be the solution. In that case, miner will fail to solve the puzzle or running time is considerably higher.
+Calculating random values can be expensive. To improve efficiency, we might use random functions with constant or faster running times, such as `random.random()` instead of `random.randint()`.
 
-On the other hand, in first algorithm, where nonce is chosen randomly, each nonce is equally probable of getting picked at any given time. So, algorithm has higher probability of giving output in less time for larger difficulty level.
+Proof of Work is computationally expensive, requiring significant resources. An alternative is Proof of Stake (PoS), where validators are chosen based on the amount of cryptocurrency they hold. PoS is more resource-efficient but still effective for maintaining a decentralized network.
 
-<b><h4>Security</h4></b>
+## On-Chain vs Off-Chain Blockchain
 
-Secondly, 2nd algorithm is not quite secure because nonce value can be estimated based on the running time of the algorithm. For example, Assume that Nonce value is between (0,10000). If running time is less, nonce will be small number such as between 0-1000. If running time is higher, then nonce can be close to 10000. Here, we might wonder why the security of nonce is important. If someone has information about one block and they can also figure out nonce for that block, then they can easily break the entire blockchain system because all the blocks are connected to each other with their hash values.
+Blockchain can be classified into two types: On-chain and Off-chain.
 
-<h2>Some Issues with first algorithm</h2>
+### On-chain Blockchain
 
-Calculating random values can be expensive. So, we might need to find random functions that have constant running time or quicker compared to other random functions. For example, python random.random() function is faster than random.randint().
+On-chain blockchain stores all data within the blocks. It is more secure because the data is encapsulated in secure blocks. However, it can be slower and more resource-intensive.
 
-Overall, any proof of work algorithm is computationally expensive and requires too many resources. There is an alternative to proof of work algorithm, that is proof of stack algorithms, which are also effective in terms of supporting decentralized network. In proof of stack algorithm, validators are randomly chosen. The probability of being chosen also depends on the value of stacks they hold for that blockchain. The chosen validator acquires a right to add a new block to the chain. Based on the validity of the block, the value of stack that the validator hold will increase or decrease. This method is not expensive yet effective.
+### Off-chain Blockchain
 
-<h2>Comparison for On-chain and Off-Chain Blockchain:</h2>
+Off-chain blockchain stores only metadata in the blocks, with the actual data stored elsewhere. This is less resource-heavy and faster but may be less secure.
 
-Blockchain applications can also be divided into two types: On-chain Blockchain & Off-chain Blockchain. On-chain Blockchain refers to storing information inside blocks and Off-chain Blockchain refers to storing actual data outside the block and only keep metadata in block. 
+### Advantages of On-chain Blockchain:
 
-<h3>Advantages of On-chain blockchain: </h3>
+- More secure, as the data is encapsulated in secure blocks.
+- Data recovery is easier in case of a system breach.
 
-On-chain blockchain can be more secure because information is capsulated in secure blocks.
-Infomation can be recovered easily in case of break in the system.
+### Disadvantages of On-chain Blockchain:
 
-<h3>Disadvantages of On-chain blockchain:</h3>
+- Slower due to the large amount of data processed.
+- More expensive and resource-intensive to maintain.
 
-Runnning time of the insertion and other block-operations can be slow because it holds too much data to process.
-It is expensive and requires more resources to maintain.
-
-Here, issues with On-chain blockchain can be solved by using off-chain blockchain but On-chain blockchain is more effective where main concern is security and back-up of information. For this project, we have implemented On-chain blockchain which contains entire file data in block including file size and file name.
-
-<h2>References:</h2>
-1. https://github.com/JungWinter/file-on-blockchain<br />
-2. https://github.com/MoTechStore/Python-Flask-Blockchain-Based-Content-Sharing<br/>
-3. https://medium.com/@amannagpal4/how-to-create-your-own-decentralized-file-sharing-service-using-python-2e00005bdc4a
-
-<h2> Authors </h2>
-
-1. Name: Bhautik Sojitra
-Student Id: 7900140
-
-2. Name: Kabir Bhakta
-Student Id: 7900098
+For this project, we implemented an on-chain blockchain, where the entire file data, including the file size and name, is stored in each block.
