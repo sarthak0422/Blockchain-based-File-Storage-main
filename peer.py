@@ -3,10 +3,13 @@ from flask import Flask, jsonify, request
 from Block import Block
 from hashlib import sha256
 import logging
+import requests
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 app.logger = logging.getLogger(__name__)
+
+peers = set()  # <-- Peer nodes
 
 class Blockchain:
     def __init__(self):
@@ -104,6 +107,8 @@ def new_transaction():
         app.logger.info(f"Received transaction: {tx}")
         
         index = blockchain.new_transaction(tx)
+        broadcast_transaction(tx)  # <-- Broadcast to peers
+
         return jsonify({
             "message": "Transaction added",
             "block_index": index,
@@ -132,7 +137,13 @@ def mine():
     return jsonify({
         "message": "New Block Forged",
         "index": mined_block.index,
-        "transactions": len(mined_block.transactions),
+        "transactions": [
+            {
+                "user": tx["user"],
+                "v_file": tx["v_file"],
+                "file_size": tx["file_size"]
+            } for tx in mined_block.transactions
+        ],
         "previous_hash": mined_block.previous_hash,
         "hash": mined_block.hash,
         "nonce": mined_block.nonce,
@@ -161,13 +172,78 @@ def get_chain():
 @app.route("/pending_tx", methods=["GET"])
 def get_pending_tx():
     return jsonify({
-        "pending": [{
+        "pending": [ {
             "user": tx["user"],
             "v_file": tx["v_file"],
             "file_size": tx["file_size"]
-        } for tx in blockchain.pending],
+        } for tx in blockchain.pending ],
         "count": len(blockchain.pending)
     })
+
+# ------------------------ PEER NETWORKING ------------------------
+
+@app.route('/register_peer', methods=['POST'])
+def register_peer():
+    data = request.get_json()
+    if not data or 'peer' not in data:
+        return jsonify({'error': 'Invalid peer data'}), 400
+
+    peer = data['peer']
+    peers.add(peer)
+    return jsonify({'message': 'Peer added successfully', 'peers': list(peers)}), 201
+
+@app.route('/peers', methods=['GET'])
+def get_peers():
+    return jsonify({'peers': list(peers)})
+
+def broadcast_transaction(tx):
+    for peer in peers:
+        try:
+            requests.post(f"{peer}/new_transaction", json=tx)
+        except:
+            continue
+
+def valid_chain(chain):
+    for i in range(1, len(chain)):
+        prev = chain[i - 1]
+        curr = chain[i]
+        if curr['previous_hash'] != prev['hash']:
+            return False
+        if sha256(json.dumps(curr, sort_keys=True).encode()).hexdigest() != curr['hash']:
+            return False
+    return True
+
+def resolve_conflicts():
+    global blockchain
+    max_length = len(blockchain.chain)
+    new_chain = None
+
+    for peer in peers:
+        try:
+            response = requests.get(f'{peer}/chain')
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+                if length > max_length and valid_chain(chain):
+                    max_length = length
+                    new_chain = chain
+        except:
+            continue
+
+    if new_chain:
+        blockchain.chain = [Block(**blk) for blk in new_chain]
+        return True
+    return False
+
+@app.route('/resolve', methods=['GET'])
+def consensus():
+    replaced = resolve_conflicts()
+    return jsonify({
+        "message": "Chain replaced" if replaced else "Chain is authoritative",
+        "length": len(blockchain.chain)
+    })
+
+# ----------------------------------------------------------------
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8800, debug=True)

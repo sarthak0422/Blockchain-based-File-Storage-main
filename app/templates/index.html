@@ -1,139 +1,113 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style type="text/css">
-  .navbar-item:hover {
-    background-color: #b9293c;
-  }
-
-  .left { float: left; }
-  .right { float: right; }
-
-  .title {
-    margin-top: 2rem;
-    text-align: center;
-    line-height: 1.6rem;
-  }
-  .title-text {
-    font-family:'Courier New', Courier, monospace;
-    font-size: 3rem;
-  }
-  .subtitle-text { font-size: 1.8rem; }
-  .hr {
-    border-style: solid;
-    border-width: 0.08rem;
-    border-color: #8d7f7f;
-    width: 100%;
-  }
-
-  .content {
-    min-height: 100%;
-    height: 100%;
-  }
-  .btn:hover {
-    background-color: #b92948;
-    cursor: pointer;
-  }
-  .post-textarea,
-  .name-input {
-    font-family:'Courier New', Courier, monospace;
-    font-size: 1.2rem;
-    padding: 0.8rem;
-    border-radius: 0.4rem;
-  }
-
-  .request_tx {
-    margin: 1.5rem 0;
-  }
-  
-  .post_box {
-    background: rgb(131, 251, 245);
-    padding: 1rem;
-    margin-bottom: 0.8rem;
-    border: 0.1rem solid #7f8c8d;
-    border-radius: 0.4rem;
-  }
-  .post_box-avatar {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-size: 1.5rem;
-    float: left;
-    margin-right: 1rem;
-    background-color: #b92948;
-  }
-  .post_box-body {
-    margin-top: 1rem;
-    font-size: 1.1rem;
-  }
+<style>
+    .card {
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .file-item {
+        border-bottom: 1px solid #eee;
+        padding: 15px 0;
+    }
+    .file-meta {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+    .disabled {
+        pointer-events: none;
+        opacity: 0.6;
+    }
+    .mining-status {
+        font-size: 0.8em;
+        padding: 2px 5px;
+        border-radius: 3px;
+    }
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .status-confirmed {
+        background-color: #d4edda;
+        color: #155724;
+    }
 </style>
 
-<div class="container-fluid mt-3">
-  <div class="row">
-    <div class="col-md-4 mb-4">
-      <div class="card">
-        <div class="card-header bg-primary text-white">
-          <h4 class="text-center mb-0">Upload a File</h4>
-        </div>
-        <div class="card-body">
-          <form action="{{ url_for('submit') }}" method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-              <label>User Name:</label>
-              <input type="text" class="form-control" name="user" 
-                     value="{{ current_user.username if current_user.is_authenticated else '' }}"
-                     {{ 'readonly' if current_user.is_authenticated else '' }}>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    Upload a File
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('submit') }}" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Select File:</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="fileInput" name="v_file" required>
+                                <label class="custom-file-label" for="fileInput">Choose file...</label>
+                            </div>
+                            <small class="form-text text-muted">Max size: 5MB</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-upload"></i> Upload
+                        </button>
+                    </form>
+                </div>
             </div>
-            <div class="form-group">
-              <label>Select File:</label>
-              <div class="custom-file">
-                <input type="file" class="custom-file-input" id="fileUpld" name="v_file" accept=".*" required>
-                <label class="custom-file-label" for="fileUpld">Choose file...</label>
-              </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-primary text-white">
+                    Mine Transactions
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('mine_unconfirmed_transactions') }}" class="btn btn-warning btn-block">
+                        <i class="fas fa-hammer"></i> Mine Block
+                    </a>
+                    <p class="mt-2 text-muted">Mine pending transactions into the blockchain</p>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary btn-block mt-3">
-              <i class="fas fa-upload"></i> Upload
-            </button>
-          </form>
         </div>
-      </div>
-    </div>
 
-    <div class="col-md-8">
-      <div class="card">
-        <div class="card-header bg-primary text-white">
-          <h4 class="text-center mb-0">Uploaded Files</h4>
-        </div>
-        <div class="card-body">
-          {% if request_tx %}
-            {% for post in request_tx %}
-            <div class="post_box">
-              <div class="d-flex align-items-center mb-2">
-                <div class="post_box-avatar">{{ post.user[0]|upper }}</div>
-                <h5 class="mb-0">{{ post.user }}</h5>
-              </div>
-              <div class="post_box-body">
-                <p class="mb-1">
-                  <strong>{{ post.v_file }}</strong>
-                  <a href="{{ url_for('download_file', filename=post.v_file) }}" 
-                     class="btn btn-sm btn-success float-right">
-                    <i class="fas fa-download"></i> Download
-                  </a>
-                </p>
-                <small class="text-muted">Size: {{ post.file_size|filesizeformat }}</small>
-              </div>
-            </div>
-            {% endfor %}
-          {% else %}
-            <div class="alert alert-info">No files uploaded yet</div>
-          {% endif %}
-        </div>
-      </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    Your Files
+                </div>
+                <div class="card-body">
+                    {% if request_tx %}
+                        <!-- ... [keep all other code the same until file display] -->
+{% for file in request_tx %}
+<div class="file-item">
+    <div class="d-flex justify-content-between align-items-center">
+        <h5>{{ file.v_file }}</h5>
+        <span class="badge {{ 'bg-success' if file.is_mined else 'bg-warning' }}">
+            {{ 'Mined' if file.is_mined else 'Pending' }}
+        </span>
     </div>
-  </div>
+    <div class="file-meta">
+        Size: {{ file.file_size|filesizeformat }} | 
+        Uploaded: {{ file.uploaded_at }}
+        {% if file.is_mined %} | Block: {{ file.blockchain_tx }}{% endif %}
+    </div>
+    <div class="text-right mt-2">
+        <a href="{{ url_for('download_file', filename=file.v_file) }}" 
+           class="btn btn-sm btn-success {{ 'disabled' if not file.is_mined }}"
+           {% if not file.is_mined %}title="File not yet mined"{% endif %}>
+            <i class="fas fa-download"></i> Download
+        </a>
+    </div>
+</div>
+{% endfor %}
+<!-- ... [keep all other code the same] -->
+                    {% else %}
+                        <div class="alert alert-info">No files uploaded yet</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -141,18 +115,10 @@
 {{ super() }}
 <script>
 $(document).ready(function(){
-  // Update file input label
-  $('.custom-file-input').on('change', function() {
-    let fileName = $(this).val().split('\\').pop();
-    $(this).next('.custom-file-label').addClass("selected").html(fileName);
-  });
-
-  // Auto-refresh if mining was successful
-  if ($('.alert-success').length) {
-    setTimeout(function(){
-      location.reload();
-    }, 2000);
-  }
+    $('.custom-file-input').on('change', function() {
+        let fileName = $(this).val().split('\\').pop();
+        $(this).next('.custom-file-label').addClass("selected").html(fileName);
+    });
 });
 </script>
 {% endblock %}

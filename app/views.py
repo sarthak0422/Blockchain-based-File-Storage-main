@@ -1,4 +1,3 @@
-import json
 import os
 import requests
 from flask import (
@@ -6,13 +5,13 @@ from flask import (
     send_file, flash, url_for
 )
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (
     login_required, current_user,
     login_user, logout_user
 )
+from datetime import datetime
 from app import db, login_manager
-from app.models import User
+from app.models import User, File
 from app.forms import LoginForm
 
 # Configuration
@@ -21,66 +20,46 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx'}
 ADDR = "http://127.0.0.1:8800"
 UPLOAD_FOLDER = 'static/Uploads'
 
-# Global variables
-request_tx = []
-files = {}
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def init_app(app):
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-    def get_tx_req():
-        global request_tx
-        try:
-            resp = requests.get(f"{ADDR}/chain", timeout=5)
-            if resp.status_code == 200:
-                content = []
-                chain = resp.json()
-                for block in chain["chain"]:
-                    for trans in block["transactions"]:
-                        trans["index"] = block["index"]
-                        trans["hash"] = block["previous_hash"]
-                        content.append(trans)
-                request_tx = sorted(content, key=lambda k: k["hash"], reverse=True)
-        except requests.exceptions.RequestException as e:
-            app.logger.error(f"Failed to fetch chain: {str(e)}")
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if current_user.is_authenticated:
             return redirect(url_for('index'))
-            
+
         form = LoginForm()
         if form.validate_on_submit():
             user = User.query.filter_by(username=form.username.data).first()
-            
+
             if not user:
                 try:
-                    hashed_password = generate_password_hash(form.password.data)
-                    new_user = User(username=form.username.data, password=hashed_password)
+                    new_user = User(username=form.username.data)
+                    new_user.set_password(form.password.data)
                     db.session.add(new_user)
                     db.session.commit()
                     login_user(new_user, remember=form.remember.data)
                     flash('Account created! You are now logged in.', 'success')
-                    next_page = request.args.get('next')
-                    return redirect(next_page) if next_page else redirect(url_for('index'))
-                except Exception as e:
+                    return redirect(url_for('index'))
+                except Exception:
                     db.session.rollback()
                     flash('Account creation failed. Please try again.', 'danger')
-            elif check_password_hash(user.password, form.password.data):
+            elif user.check_password(form.password.data):
                 login_user(user, remember=form.remember.data)
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('index'))
+                return redirect(url_for('index'))
             else:
                 flash('Login failed. Check username and password', 'danger')
-        
+
         return render_template('login.html', title='Login', form=form)
 
     @app.route('/logout')
@@ -92,12 +71,22 @@ def init_app(app):
     @app.route("/")
     @login_required
     def index():
-        get_tx_req()
+        user_files = File.query.filter_by(user_id=current_user.id).order_by(File.uploaded_at.desc()).all()
+
+        request_tx = [{
+            "user": current_user.username,
+            "v_file": f.filename,
+            "file_size": f.size,
+            "uploaded_at": f.uploaded_at.strftime('%Y-%m-%d %H:%M'),
+            "is_mined": f.is_mined,
+            "blockchain_tx": f.blockchain_tx
+        } for f in user_files]
+
         return render_template("index.html",
-                            title="FileStorage",
-                            subtitle="Decentralized File Storage",
-                            node_address=ADDR,
-                            request_tx=request_tx)
+                               title="FileStorage",
+                               subtitle="Decentralized File Storage",
+                               node_address=ADDR,
+                               request_tx=request_tx)
 
     @app.route("/submit", methods=["POST"])
     @login_required
@@ -116,30 +105,30 @@ def init_app(app):
             return redirect("/")
 
         try:
-            # Check file size without saving
             file.seek(0, os.SEEK_END)
             file_size = file.tell()
             file.seek(0)
-            
+
             if file_size > MAX_FILE_SIZE:
-                flash(f'File too large (max {MAX_FILE_SIZE//1024//1024}MB)', 'danger')
+                flash(f'File too large (max {MAX_FILE_SIZE // 1024 // 1024}MB)', 'danger')
                 return redirect("/")
 
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            
-            # Save file and store path
             file.save(filepath)
-            files[filename] = filepath
 
-            # Read file content
+            new_file = File(
+                filename=filename,
+                filepath=filepath,
+                user_id=current_user.id,
+                size=file_size,
+                is_mined=False
+            )
+            db.session.add(new_file)
+
             with open(filepath, 'rb') as f:
                 file_content = f.read()
 
-            # Prepare transaction
             transaction = {
                 "user": current_user.username,
                 "v_file": filename,
@@ -147,7 +136,6 @@ def init_app(app):
                 "file_size": file_size
             }
 
-            # Submit to blockchain
             try:
                 response = requests.post(
                     f"{ADDR}/new_transaction",
@@ -155,54 +143,86 @@ def init_app(app):
                     headers={'Content-Type': 'application/json'},
                     timeout=10
                 )
-                
+
                 if response.status_code == 201:
-                    flash('File uploaded and transaction created!', 'success')
+                    db.session.commit()
+                    flash('File uploaded and transaction created! Mine a block to confirm.', 'success')
                 else:
+                    db.session.rollback()
+                    os.remove(filepath)
                     error = response.json().get('error', response.text)
                     flash(f'Blockchain error: {error}', 'danger')
-                    
+
             except requests.exceptions.RequestException as e:
+                db.session.rollback()
+                os.remove(filepath)
                 flash(f'Network error: {str(e)}', 'danger')
-            
+
             return redirect("/")
-            
+
         except Exception as e:
+            db.session.rollback()
+            if 'filepath' in locals() and os.path.exists(filepath):
+                os.remove(filepath)
             flash(f'Unexpected error: {str(e)}', 'danger')
             return redirect("/")
 
     @app.route("/submit/<string:filename>", methods=["GET"])
+    @login_required
     def download_file(filename):
-        if filename in files:
-            try:
-                return send_file(files[filename], as_attachment=True)
-            except Exception as e:
-                flash(f"Download failed: {str(e)}", 'danger')
-        flash("File not found", 'danger')
-        return redirect(url_for('index'))
+        file_record = File.query.filter_by(filename=filename, user_id=current_user.id).first()
+        if not file_record:
+            flash("File not found", 'danger')
+            return redirect(url_for('index'))
+
+        if not file_record.is_mined:
+            flash("File not yet confirmed in blockchain. Please mine a block first.", 'warning')
+            return redirect(url_for('index'))
+
+        if not os.path.exists(file_record.filepath):
+            flash("File not found on server", 'danger')
+            return redirect(url_for('index'))
+
+        try:
+            return send_file(file_record.filepath, as_attachment=True)
+        except Exception as e:
+            flash(f"Download failed: {str(e)}", 'danger')
+            return redirect(url_for('index'))
 
     @app.route("/mine", methods=["GET"])
     @login_required
     def mine_unconfirmed_transactions():
         try:
-            resp = requests.get(f"{ADDR}/mine", timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            if data.get('transactions', 0) > 0:
-                flash(f"✅ Mined Block #{data['index']} with {data['transactions']} transactions", 'success')
+            # First get pending transactions
+            pending_resp = requests.get(f"{ADDR}/pending_tx", timeout=5)
+            pending_resp.raise_for_status()
+            pending_tx = pending_resp.json().get('pending', [])
+
+            if not pending_tx:
+                flash("No transactions to mine", 'info')
+                return redirect(url_for('index'))
+
+            # Mine the block
+            mine_resp = requests.get(f"{ADDR}/mine", timeout=10)
+            mine_resp.raise_for_status()
+            mine_data = mine_resp.json()
+
+            if mine_data.get('message') == "New Block Forged":
+                for tx in pending_tx:
+                    file = File.query.filter_by(
+                        filename=tx['v_file'],
+                        user_id=current_user.id
+                    ).first()
+                    if file:
+                        file.is_mined = True
+                        file.blockchain_tx = str(mine_data['index'])
+                db.session.commit()
+                flash(f"Mined Block #{mine_data['index']} with {len(pending_tx)} transactions", 'success')
             else:
-                flash(data.get('message', 'No transactions to mine'), 'info')
-                
-        except requests.exceptions.HTTPError as e:
-            try:
-                error_msg = e.response.json().get('error', str(e))
-            except ValueError:
-                error_msg = str(e)
-            flash(f"⚠️ Mining failed: {error_msg}", 'danger')
+                flash(mine_data.get('message', 'Mining failed'), 'danger')
+
+            return redirect(url_for('index'))
+
         except requests.exceptions.RequestException as e:
-            flash(f"⚠️ Network error: {str(e)}", 'danger')
-        except Exception as e:
-            flash(f"⚠️ Unexpected error: {str(e)}", 'danger')
-        
-        return redirect(url_for('index'))
+            flash(f"Mining failed: {str(e)}", 'danger')
+            return redirect(url_for('index'))

@@ -20,6 +20,3 @@ class Block:
             "timestamp": self.timestamp
         }, sort_keys=True).encode()
         return sha256(block_string).hexdigest()
-
-    def add_transaction(self, transaction):
-        self.transactions.append(transaction)
